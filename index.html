@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2a78d6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <title>Mis Finanzas</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+    <nav class="nav" aria-label="Secciones">
+      <div class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"> <span>Mis Finanzas</span></div>
+      <button class="nav-btn" data-view="inicio"><span class="ico">🏠</span><span>Inicio</span></button>
+      <button class="nav-btn" data-view="movimientos"><span class="ico">📋</span><span>Movimientos</span></button>
+      <button class="nav-btn nav-add" data-action="nuevo" aria-label="Nuevo movimiento"><span class="ico">＋</span><span>Nuevo</span></button>
+      <button class="nav-btn" data-view="graficos"><span class="ico">📊</span><span>Gráficos</span></button>
+      <button class="nav-btn" data-view="ajustes"><span class="ico">⚙️</span><span>Ajustes</span></button>
+    </nav>
+
+    <main id="main">
+      <!-- INICIO -->
+      <section class="view" id="view-inicio">
+        <header class="view-head">
+          <h1>Inicio</h1>
+          <div class="month-picker" data-month-picker></div>
+        </header>
+        <div class="card balance-card">
+          <div class="muted">Saldo actual</div>
+          <div class="balance" id="saldo-actual">₡0</div>
+          <div class="balance-row">
+            <div><span class="dot dot-in"></span>Ingresos del mes <strong id="mes-ingresos">₡0</strong></div>
+            <div><span class="dot dot-out"></span>Egresos del mes <strong id="mes-egresos">₡0</strong></div>
+          </div>
+        </div>
+        <div id="alertas"></div>
+        <div class="grid-2">
+          <div class="card">
+            <h2>Límites del mes</h2>
+            <div id="limites-lista"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Últimos movimientos</h2><button class="link" data-view-link="movimientos">Ver todos</button></div>
+            <ul class="mov-list" id="ultimos"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- MOVIMIENTOS -->
+      <section class="view" id="view-movimientos" hidden>
+        <header class="view-head">
+          <h1>Movimientos</h1>
+          <div class="month-picker" data-month-picker></div>
+        </header>
+        <div class="filters">
+          <select id="filtro-tipo" aria-label="Tipo">
+            <option value="">Todos</option>
+            <option value="egreso">Egresos</option>
+            <option value="ingreso">Ingresos</option>
+          </select>
+          <select id="filtro-cat" aria-label="Categoría"><option value="">Todas las categorías</option></select>
+          <input id="filtro-texto" type="search" placeholder="Buscar nota…" aria-label="Buscar">
+        </div>
+        <div class="card">
+          <div class="mov-summary" id="mov-summary"></div>
+          <ul class="mov-list" id="mov-lista"></ul>
+        </div>
+      </section>
+
+      <!-- GRAFICOS -->
+      <section class="view" id="view-graficos" hidden>
+        <header class="view-head">
+          <h1>Gráficos</h1>
+          <div class="month-picker" data-month-picker></div>
+        </header>
+        <div class="grid-2">
+          <div class="card viz-card">
+            <div class="card-head"><h2>Gasto por categoría</h2><button class="link" id="toggle-tabla">Ver tabla</button></div>
+            <p class="muted small">La raya vertical marca el límite mensual.</p>
+            <div id="chart-categorias" class="chart"></div>
+            <div id="tabla-categorias" hidden></div>
+          </div>
+          <div class="card viz-card">
+            <h2>Ingresos y egresos (últimos 6 meses)</h2>
+            <div class="legend" id="legend-meses"></div>
+            <div id="chart-meses" class="chart"></div>
+          </div>
+        </div>
+        <div class="card viz-card">
+          <h2>Evolución del saldo</h2>
+          <p class="muted small">Saldo al final de cada día del mes seleccionado.</p>
+          <div id="chart-saldo" class="chart"></div>
+        </div>
+      </section>
+
+      <!-- AJUSTES -->
+      <section class="view" id="view-ajustes" hidden>
+        <header class="view-head"><h1>Ajustes</h1></header>
+        <div class="grid-2">
+          <div class="card">
+            <h2>Saldo inicial</h2>
+            <p class="muted small">El dinero que tenías al empezar a usar la app. A partir de aquí se suman los ingresos y se restan los egresos.</p>
+            <form id="form-saldo" class="stack">
+              <label>Monto <input id="saldo-inicial" inputmode="decimal" autocomplete="off" required></label>
+              <label>Moneda
+                <select id="moneda">
+                  <option value="CRC">Colones (₡)</option>
+                  <option value="USD">Dólares ($)</option>
+                </select>
+              </label>
+              <label>Avisarme al llegar al
+                <select id="umbral">
+                  <option value="0.7">70 % del límite</option>
+                  <option value="0.8">80 % del límite</option>
+                  <option value="0.9">90 % del límite</option>
+                </select>
+              </label>
+              <button class="btn primary" type="submit">Guardar</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2>Respaldo</h2>
+            <p class="muted small">Tus datos viven en este dispositivo. Para verlos en la compu: en el iPhone toca "Enviar respaldo" y mándalo por AirDrop (o a Archivos/iCloud). En la compu toca "Cargar respaldo" y elige ese archivo. Se unen los datos sin duplicar nada.</p>
+            <p class="small" id="ultimo-respaldo"></p>
+            <div class="stack">
+              <button class="btn" id="btn-exportar">Enviar / descargar respaldo</button>
+              <label class="btn file-btn">Cargar respaldo<input type="file" id="input-importar" accept="application/json,.json" hidden></label>
+              <button class="btn" id="btn-csv">Exportar movimientos (CSV para Excel)</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Categorías y límites mensuales</h2><button class="btn small" id="btn-nueva-cat">＋ Categoría</button></div>
+          <div class="cat-admin" id="cat-admin"></div>
+        </div>
+        <p class="muted small center" id="version-info"></p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Formulario de movimiento -->
+  <dialog id="dlg-mov" class="sheet">
+    <form id="form-mov" method="dialog">
+      <div class="sheet-head">
+        <h2 id="dlg-mov-title">Nuevo movimiento</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Cerrar">✕</button>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Tipo">
+        <label><input type="radio" name="tipo" value="egreso" checked><span>Egreso</span></label>
+        <label><input type="radio" name="tipo" value="ingreso"><span>Ingreso</span></label>
+      </div>
+      <label class="amount-field">
+        <span class="currency-sym" id="mov-sym">₡</span>
+        <input id="mov-monto" inputmode="decimal" placeholder="0" autocomplete="off" required aria-label="Monto">
+      </label>
+      <div class="chips" id="mov-cats" role="radiogroup" aria-label="Categoría"></div>
+      <div class="row-2">
+        <label>Fecha <input type="date" id="mov-fecha" required></label>
+        <label>Nota <input id="mov-nota" placeholder="Opcional" autocomplete="off"></label>
+      </div>
+      <p class="warn-inline" id="mov-aviso" hidden></p>
+      <div class="sheet-actions">
+        <button type="button" class="btn danger" id="btn-borrar-mov" hidden>Borrar</button>
+        <button type="submit" class="btn primary grow">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Formulario de categoría -->
+  <dialog id="dlg-cat" class="sheet">
+    <form id="form-cat" method="dialog">
+      <div class="sheet-head">
+        <h2 id="dlg-cat-title">Categoría</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Cerrar">✕</button>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="Tipo">
+        <label><input type="radio" name="cat-tipo" value="egreso" checked><span>Egreso</span></label>
+        <label><input type="radio" name="cat-tipo" value="ingreso"><span>Ingreso</span></label>
+      </div>
+      <div class="row-2">
+        <label class="emoji-field">Ícono <input id="cat-icono" maxlength="4" placeholder="🏷️"></label>
+        <label>Nombre <input id="cat-nombre" required autocomplete="off"></label>
+      </div>
+      <label id="cat-limite-wrap">Límite mensual (vacío = sin límite)<input id="cat-limite" inputmode="decimal" autocomplete="off"></label>
+      <div class="sheet-actions">
+        <button type="button" class="btn danger" id="btn-borrar-cat" hidden>Borrar</button>
+        <button type="submit" class="btn primary grow">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Bienvenida -->
+  <dialog id="dlg-bienvenida" class="sheet">
+    <form id="form-bienvenida" method="dialog" class="stack">
+      <h2>¡Bienvenido!</h2>
+      <p>¿Cuánto dinero tienes hoy? A partir de ese monto la app irá sumando tus ingresos y restando tus egresos.</p>
+      <label class="amount-field"><span class="currency-sym">₡</span><input id="bienv-saldo" inputmode="decimal" placeholder="0" autocomplete="off" required aria-label="Saldo inicial"></label>
+      <p class="muted small">Puedes cambiarlo después en Ajustes, igual que los límites de cada categoría.</p>
+      <button class="btn primary" type="submit">Empezar</button>
+      <label class="btn file-btn">Ya uso la app en otro dispositivo: cargar respaldo<input type="file" id="bienv-importar" accept="application/json,.json" hidden></label>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+
+  <script src="db.js"></script>
+  <script src="charts.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
