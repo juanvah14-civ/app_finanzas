@@ -1,6 +1,6 @@
 /* Mis Finanzas: lógica de la app. */
 (() => {
-  const APP_VERSION = '0.1.1';
+  const APP_VERSION = '0.2.0';
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -265,7 +265,8 @@
     const grupo = tipo => state.categorias.filter(c => c.tipo === tipo).map(c => `<button class="cat-row" data-cat="${c.id}">
       <span class="mov-ico">${esc(c.icono)}</span><span class="grow">${esc(c.nombre)}</span>
       <span class="muted small">${c.tipo === 'egreso' ? (c.limite ? 'Límite ' + fmt(c.limite) : 'Sin límite') : ''}</span><span class="chev">›</span></button>`).join('');
-    $('#cat-admin').innerHTML = `<h3>Egresos</h3>${grupo('egreso')}<h3>Ingresos</h3>${grupo('ingreso')}`;
+    const nueva = tipo => `<button class="cat-row cat-add" data-action="nueva-cat" data-tipo="${tipo}"><span class="mov-ico">＋</span><span class="grow">Nueva categoría de ${tipo}</span></button>`;
+    $('#cat-admin').innerHTML = `<h3>Egresos</h3>${grupo('egreso')}${nueva('egreso')}<h3>Ingresos</h3>${grupo('ingreso')}${nueva('ingreso')}`;
     const ult = localStorage.getItem('ultimoRespaldo');
     $('#ultimo-respaldo').textContent = ult ? `Último respaldo: ${fechaLarga(ult)}` : 'Todavía no has hecho ningún respaldo.';
     $('#version-info').textContent = `Versión ${APP_VERSION} · ${state.movimientos.length} movimientos guardados en este dispositivo`;
@@ -305,7 +306,8 @@
   function pintarChips(tipo, sel) {
     const cats = state.categorias.filter(c => c.tipo === tipo);
     if (!sel || !cats.some(c => c.id === sel)) sel = cats[0]?.id;
-    $('#mov-cats').innerHTML = cats.map(c => `<label class="chip"><input type="radio" name="cat" value="${c.id}" ${c.id === sel ? 'checked' : ''}><span>${esc(c.icono)} ${esc(c.nombre)}</span></label>`).join('');
+    $('#mov-cats').innerHTML = cats.map(c => `<label class="chip"><input type="radio" name="cat" value="${c.id}" ${c.id === sel ? 'checked' : ''}><span>${esc(c.icono)} ${esc(c.nombre)}</span></label>`).join('')
+      + `<button type="button" class="chip chip-add" data-action="nueva-cat" data-tipo="${tipo}"><span>＋ Nueva</span></button>`;
     avisoPrevio();
   }
 
@@ -375,19 +377,21 @@
   }
 
   /* ---------- categorías ---------- */
-  function abrirCat(id = null) {
+  function abrirCat(id = null, tipoNuevo = 'egreso') {
     state.editCatId = id;
+    state.catDesdeMov = !id && $('#dlg-mov').open;
     const c = id ? state.categorias.find(x => x.id === id) : null;
     const f = $('#form-cat');
     f.reset();
     $('#dlg-cat-title').textContent = c ? 'Editar categoría' : 'Nueva categoría';
     $('#btn-borrar-cat').hidden = !c;
-    f.querySelector(`input[name=cat-tipo][value=${c?.tipo || 'egreso'}]`).checked = true;
+    f.querySelector(`input[name=cat-tipo][value=${c?.tipo || tipoNuevo}]`).checked = true;
     $('#cat-icono').value = c?.icono || '';
     $('#cat-nombre').value = c?.nombre || '';
     $('#cat-limite').value = c?.limite ? String(c.limite) : '';
-    $('#cat-limite-wrap').hidden = (c?.tipo || 'egreso') !== 'egreso';
+    $('#cat-limite-wrap').hidden = (c?.tipo || tipoNuevo) !== 'egreso';
     $('#dlg-cat').showModal();
+    if (!c) setTimeout(() => $('#cat-nombre').focus(), 50);
   }
 
   async function guardarCat(e) {
@@ -398,6 +402,11 @@
     const limite = tipo === 'egreso' && limTxt ? parseMonto(limTxt) : null;
     if (limTxt && tipo === 'egreso' && !(limite > 0)) { toast('El límite no es un monto válido.'); return; }
     const prev = state.editCatId ? state.categorias.find(x => x.id === state.editCatId) : null;
+    const nombre = $('#cat-nombre').value.trim();
+    if (!nombre) { toast('Escribe un nombre.'); return; }
+    if (state.categorias.some(c => c.tipo === tipo && c.id !== prev?.id && c.nombre.toLowerCase() === nombre.toLowerCase())) {
+      toast(`Ya existe la categoría "${esc(nombre)}".`); return;
+    }
     const row = await DB.put('categorias', {
       ...(prev || {}),
       id: prev?.id,
@@ -409,7 +418,13 @@
     });
     state.categorias = state.categorias.filter(x => x.id !== row.id).concat(row).sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
     $('#dlg-cat').close();
-    toast('Categoría guardada');
+    toast(prev ? 'Categoría guardada' : `Categoría "${esc(row.nombre)}" creada ✓`);
+    // Si se creó desde el formulario de movimiento, queda seleccionada ahí.
+    if (state.catDesdeMov && $('#dlg-mov').open) {
+      $('#form-mov').querySelector(`input[name=tipo][value=${row.tipo}]`).checked = true;
+      pintarChips(row.tipo, row.id);
+    }
+    state.catDesdeMov = false;
     render();
   }
 
@@ -504,6 +519,7 @@
       if (t.dataset.view) irA(t.dataset.view);
       else if (t.dataset.viewLink) irA(t.dataset.viewLink);
       else if (t.dataset.action === 'nuevo') abrirMov();
+      else if (t.dataset.action === 'nueva-cat') abrirCat(null, t.dataset.tipo || 'egreso');
       else if (t.dataset.mes) { state.mes = mesMover(state.mes, Number(t.dataset.mes)); render(); }
       else if (t.dataset.mov) abrirMov(t.dataset.mov);
       else if (t.dataset.cat) abrirCat(t.dataset.cat);
@@ -516,7 +532,7 @@
     $('#form-cat').addEventListener('submit', guardarCat);
     $('#form-cat').addEventListener('change', e => { if (e.target.name === 'cat-tipo') $('#cat-limite-wrap').hidden = e.target.value !== 'egreso'; });
     $('#btn-borrar-cat').addEventListener('click', borrarCat);
-    $('#btn-nueva-cat').addEventListener('click', () => abrirCat());
+    $('#btn-nueva-cat').addEventListener('click', () => abrirCat(null, 'egreso'));
     $('#form-saldo').addEventListener('submit', guardarAjustes);
     $('#btn-exportar').addEventListener('click', exportar);
     $('#btn-csv').addEventListener('click', exportarCSV);
